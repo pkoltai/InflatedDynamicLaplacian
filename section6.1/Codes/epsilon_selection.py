@@ -13,6 +13,7 @@ from scipy.ndimage import gaussian_filter1d
 def _compute_S(X: np.ndarray, arr_eps: np.ndarray, eps_max: float) -> np.ndarray:
     """ Computes S(eps) = (1/N^2) * sum_{i,j} K_ij(eps) """
     N = X.shape[0]
+     # Only consider distances within cutoff radius 
     r = np.sqrt(5.0 * eps_max)
     d_all = pdist(X)
     mask  = d_all <= r
@@ -35,9 +36,11 @@ def compute_epsilon(X: np.ndarray, eps_min: float = 1e-4, eps_max: float = 1.0,
 
     # Smooth slope to reduce noise
     slope_smooth = gaussian_filter1d(slope, sigma=1)
+    # Find plateau region near maximum slope
     slope_max = slope_smooth.max()
     threshold = 0.95 * slope_max
     plateau_idx = np.where(slope_smooth >= threshold)[0]
+    # Choose middle of plateau 
     if len(plateau_idx) == 0:
         i_opt = int(np.argmax(slope_smooth))
     else:

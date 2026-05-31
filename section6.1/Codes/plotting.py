@@ -18,7 +18,7 @@ BWR = _bluewhitered()
 def _p_very_abrupt(t):
     return (1.0 + np.tanh(40.0 * (t - 0.5))) / 2.0
 
-
+# Stream function of the flow 
 def stream_function(t, x, y):
     p = _p_very_abrupt(t)
     a = np.pi * (1 - 2 * p) / (3 * (p - 2) * (p + 1))
@@ -26,7 +26,7 @@ def stream_function(t, x, y):
     return (-np.sin(np.pi / 2 * y) * np.sin(a * x**2 + b * x) )
 
 
-# Stream Function
+# Stream Function Plotting
 def fig_streamfunction(outpath=None):
     x = np.linspace(0, 3, 400)
     y = np.linspace(0, 2, 300)
@@ -48,7 +48,7 @@ def fig_streamfunction(outpath=None):
         fig.savefig(outpath, dpi=150, bbox_inches='tight',)
     return fig
 
-# Eigen Values
+# Plot eigenvalues 
 def fig_eigenvalues(idl, max_show=10, outpath=None):
     epsx = idl.epsilonx_
     lam = idl.laplacian_eigenvalues()
@@ -94,7 +94,7 @@ def fig_eigenvalues(idl, max_show=10, outpath=None):
         fig.savefig(outpath, dpi=150, bbox_inches='tight',)
     return fig
 
-
+# Helper scatter plot of eigenvector values
 def _scatter_mode(ax, xs, ys, vals, abs_cutoff=0.25, cmap=BWR, vmin=-1, vmax=1, s=8,):
 
     norm = TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax,)
@@ -104,7 +104,7 @@ def _scatter_mode(ax, xs, ys, vals, abs_cutoff=0.25, cmap=BWR, vmin=-1, vmax=1, 
     return sc, mask
 
 
-# Figure 3D
+# 3D space-time visualization
 def fig_3d_spacetime(idl, mode_idx, domain='M1', abs_cutoff=0.25, time_step=2,
                      elev=55, azim=55, M0_pts=None, outpath=None,):
 
@@ -155,7 +155,7 @@ def fig_3d_spacetime(idl, mode_idx, domain='M1', abs_cutoff=0.25, time_step=2,
     return fig, ax
 
 
-# Figure Snapshot
+# Snapshot grid (2D slices at multiple times)
 def fig_snapshot_grid(idl, mode_idx, domain='M1', abs_cutoff=0.25, n_times=10, ncols=5,
                       M0_pts=None,outpath=None,):
 
@@ -202,7 +202,7 @@ def fig_snapshot_grid(idl, mode_idx, domain='M1', abs_cutoff=0.25, n_times=10, n
     return fig
 
 
-# Figure High Variance
+# Figure High Variance to Highlight most "important" trajectories
 def fig_high_variance_trajectories(idl, mode_idx, domain='M1', top_pct=0.05,abs_cutoff=0.25, 
                                    time_step=1, M0_pts=None, add_streamfunction=True, outpath=None,):
 
@@ -268,6 +268,7 @@ def fig_high_variance_trajectories(idl, mode_idx, domain='M1', top_pct=0.05,abs_
         fig.savefig(outpath, dpi=150, bbox_inches='tight',)
     return fig, ax
 
+# Plot averaged eigenvectors 
 def fig_px_avg_modes(idl, num_modes=8, t_idx=0,outpath=None,):
     SPA = idl.SpacePointsarray
     avg_evals, avg_evecs = idl.px_avg_eigs(num_evals=num_modes + 1)

@@ -8,8 +8,9 @@ from spacetime import make_spacetime_diffusion_mat_productform, matvec_Pa
 
 
 class InflatedDynamicLaplacian:
-    def __init__(self,epsilonx  : float  = None, a_factor  : float = 3.0, dirichlet : bool = False,   
-        num_evals : int = 40, eps_scale : float  = 2.0, verbose   : bool   = True,):
+    def __init__(self,epsilonx  : float  = None, a_factor  : float = 3.0, dirichlet : bool = False, 
+                  num_evals : int = 40, eps_scale : float  = 2.0, verbose   : bool   = True,):
+        # Model parameters
         self.epsilonx   = epsilonx
         self.a_factor   = a_factor
         self.dirichlet  = dirichlet
@@ -18,15 +19,19 @@ class InflatedDynamicLaplacian:
         self.verbose    = verbose
         self.SpacePointsarray = None
         self.TimePoints       = None
+        # Operators
         self.Pthalf_interval  = None   # (T, T)  dense
         self.Px_dir           = None   # (N·T, N·T)  sparse
         self.Px               = None   # (N·T, N·T)  sparse
         self.Lt_interval      = None   # (T, T) 
+        # Eigen-decomposition results
         self.evals_s   = None          # (K,) real, sorted descending
         self.evecs     = None          # (N·T, K)
         self.evecs_3d  = None          # (N, T, K)  
+         # Mode classification
         self.dynmodes  = None          # spatial mode indices
         self.tempmodes = None          # temporal mode indices
+        # Parameters
         self.slicemeans  = None        # (T, K)
         self.var_slicemeans = None     # (K,)
         self.L2norms     = None        # (T, K)
@@ -39,6 +44,7 @@ class InflatedDynamicLaplacian:
 
     def fit(self, pts : np.ndarray, TimePoints : np.ndarray, Ix: tuple  = (0, 3),
         Iy: tuple  = (0, 2), Time_sub_sample_rate : int = 1, Space_sub_sample_rate: int = 1, ):
+        # Preprocess input data
         TimePoints = np.asarray(TimePoints).ravel()[::Time_sub_sample_rate]
         pts = pts[:, ::Space_sub_sample_rate, ::Time_sub_sample_rate]
         _, N, T = pts.shape
@@ -55,6 +61,7 @@ class InflatedDynamicLaplacian:
         else:
             self.epsilonx_ = float(self.epsilonx)
         epsilonx = self.epsilonx_
+         # Estimate temporal scale (from time step size)
         dt = float(np.max(np.diff(TimePoints)))
         self.epsilont_ = self.eps_scale * dt**2
         tau       = float(TimePoints[-1] - TimePoints[0])
@@ -71,6 +78,7 @@ class InflatedDynamicLaplacian:
             print(f"a_min={a_min:.4f}  a={self.a:.4f}  t_factor={self.t_factor:.4f}")
         if self.verbose:
             print("Building P_x ...")
+         # Build space-time diffusion operator
         Pthalf, Px, Pthalf_interval, Lt_interval = \
             make_spacetime_diffusion_mat_productform(SpacePointsarray, TimePoints,
                                    epsilonx, self.epsilont_, self.t_factor,)
@@ -78,6 +86,7 @@ class InflatedDynamicLaplacian:
         self.Px              = Px
         self.Lt_interval     = Lt_interval
         Px_dir = Px.copy()
+         # 6. Dirichlet boundary optional
         if self.dirichlet:
             if self.verbose:
                 print("Applying Dirichlet BCs ...")
@@ -92,10 +101,13 @@ class InflatedDynamicLaplacian:
         def _matvec(x):
             return matvec_Pa(x, Pthalf_interval, Px_dir, N, T)
         linop = LinearOperator(shape=(N * T, N * T), matvec=_matvec, dtype=float)
+        # Compute leading eigenvalues/eigenvectors
         raw_evals, raw_evecs = eigs(linop, k=self.num_evals, which="LM", tol=1e-10, maxiter=10000,)
+         # Sort eigenvalues (largest first)
         order = np.argsort(np.real(raw_evals))[::-1]
         raw_evals = raw_evals[order]
         raw_evecs = raw_evecs[:, order]
+        # Handle complex conjugate pairing
         for k in range(self.num_evals):
             if not np.isreal(raw_evals[k]):
                 u = np.real(raw_evecs[:, k])
@@ -106,18 +118,20 @@ class InflatedDynamicLaplacian:
                         raw_evecs[:, k] = u
                         raw_evecs[:, q] = v
                         break
+         # Store eigenpairs
         self.evals_s = np.real(raw_evals)
         evecs_real   = np.real(raw_evecs)
         evecs_real *= np.sqrt(N * T)
         self.evecs = evecs_real
         self.evecs_3d = evecs_real.reshape(N, T, self.num_evals, order='F')
+        # Classify modes (spatial vs temporal)
         self._classify_modes(T)
         if self.verbose:
             print(f"Done.  spatial={len(self.dynmodes)}  temporal={len(self.tempmodes)}")
             print(f"Top-10 nu_k (log(nu)/eps): {self.laplacian_eigenvalues()[:10]}")
         return self
 
-
+# Mode Classification
     def _classify_modes(self, T: int):
         """ Classify modes as spatial or temporal """
         if self.dirichlet:
@@ -155,7 +169,7 @@ class InflatedDynamicLaplacian:
      nu = np.real(self.evals_s)
      nu = np.clip(nu, 1e-14, 1.0)
      return np.log(nu) / self.epsilonx_
-
+    # Spatial average operator spectrum
     def px_average(self):
         _, N, T = self.SpacePointsarray.shape
         acc = sparse.csr_matrix((N, N), dtype=float)

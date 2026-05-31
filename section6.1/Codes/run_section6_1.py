@@ -5,7 +5,7 @@ import time
 import sys
 from pathlib import Path
 
-
+# To fix Windows UTF-8 printing issues if any
 if sys.platform.startswith("win"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -17,6 +17,7 @@ import scipy.io as sio
 import matplotlib
 matplotlib.use("Agg")
 
+# Project setup
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -25,6 +26,7 @@ from solver import InflatedDynamicLaplacian
 from plotting import (fig_streamfunction, fig_eigenvalues, fig_3d_spacetime,
                       fig_snapshot_grid, fig_high_variance_trajectories, fig_px_avg_modes,)
 
+# Output folder for all figures
 OUT = Path("results_section6_1")
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -37,7 +39,7 @@ IY = (0, 2)
 ABS_CUT = 0.25
 
 
-# Utilities
+# Load MATLAB trajectory data
 def load_mat(path):
     path = Path(path).expanduser().resolve()
     if not path.exists():
@@ -45,6 +47,7 @@ def load_mat(path):
     print("\nLoading MAT file:")
     print(path)
     data = sio.loadmat(str(path), squeeze_me=True)
+     # Ensure required simulation outputs exist
     required_keys = ["pts", "Tspan"]
     for key in required_keys:
         if key not in data:
@@ -52,7 +55,7 @@ def load_mat(path):
 
     return data
 
-
+# Convert raw trajectory data into solver format
 def build_spacetime_arrays(data):
     pts = np.asarray(data["pts"], dtype=np.float64)
     Tspan = np.asarray(data["Tspan"], dtype=np.float64)
@@ -62,11 +65,12 @@ def build_spacetime_arrays(data):
     _, N, T = pts.shape
 
     print(f"Detected trajectory array shape: {pts.shape}")
+     # Main data structure: SpacePointsarray[x/y, particle, time]
     SpacePointsarray = np.zeros((2, N, T), dtype=np.float64)
     for k in range(T):
         SpacePointsarray[0, :, k] = pts[0, :, k]
         SpacePointsarray[1, :, k] = pts[1, :, k]
-
+    # Reference copy of initial positions
     M0_pts = np.zeros_like(SpacePointsarray)
     for k in range(T):
         M0_pts[:, :, k] = SpacePointsarray[:, :, 0]
@@ -77,17 +81,20 @@ def build_spacetime_arrays(data):
 # Main computation
 def run(mat_path):
     print("Switching Double Gyre")
+    # Load trajectory data
     data = load_mat(mat_path)
     SpacePointsarray, TimePoints, M0_pts = build_spacetime_arrays(data)
     _, N, T = SpacePointsarray.shape
     print(f"\nParticles : {N}")
     print(f"Time steps: {T}")
+     # Build Inflated Dynamic Laplacian operator
     t0 = time.time()
     idl = InflatedDynamicLaplacian(epsilonx=EPSILON, a_factor=A_FACTOR, dirichlet=False,
         num_evals=NUM_EVALS, eps_scale=2.0, verbose=True, )
-
+    # Fit operator to trajectory data
     idl.fit(SpacePointsarray, TimePoints, Ix=IX, Iy=IY,)
     elapsed = time.time() - t0
+    # Print eigenvalue summary
     lam = np.asarray(idl.laplacian_eigenvalues())
     print("\nTop eigenvalues:\n")
     for i, val in enumerate(lam[:10]):
@@ -96,7 +103,7 @@ def run(mat_path):
             else "temporal")
 
         print(f"k={i+1:2d}   " f"L={val:+.6f}   " f"({mode_type})" )
-
+     # Visualization pipeline
     print("\nGenerating figures...\n")
 
     try:
@@ -108,7 +115,7 @@ def run(mat_path):
         fig_eigenvalues(idl, max_show=10, outpath=OUT / "figB_eigenvalues.png",)
         print("Generated eigenvalues.png")
 
-        # 3D Plot
+        # 3D space-time eigenvector Plot
         dyn = np.asarray(idl.dynmodes)
         m2 = int(dyn[1])
         fig_3d_spacetime(idl, mode_idx=m2, domain="M0", abs_cutoff=ABS_CUT,M0_pts=M0_pts, 
@@ -119,7 +126,7 @@ def run(mat_path):
 
         print("Generated 3D View")
 
-        # Snapshots
+        # Snapshot views across time
         fig_snapshot_grid(idl, mode_idx=m2, domain="M1", abs_cutoff=ABS_CUT,
                           n_times=10, outpath=OUT / "figD_snapshots_M1.png", )
 
@@ -128,19 +135,18 @@ def run(mat_path):
 
         print("Generated Snapshots")
 
-        # High Variance
-
+        # High Variance Trajectories
         fig_high_variance_trajectories(idl, mode_idx=m2, domain="M1", top_pct=0.05,
                                        abs_cutoff=ABS_CUT,add_streamfunction=True, 
-                                       M0_pts=M0_pts, outpath=OUT / "figG_highvar_M1.png",)
+                                       M0_pts=M0_pts, outpath=OUT / "figG_highvar_M1.png", interactive=True)
 
         fig_high_variance_trajectories(idl, mode_idx=m2, domain="M0", top_pct=0.05,
                                        abs_cutoff=ABS_CUT,add_streamfunction=False, 
-                                       M0_pts=M0_pts, outpath=OUT / "figG_highvar_M0.png",)
+                                       M0_pts=M0_pts, outpath=OUT / "figG_highvar_M0.png", interactive=True)
 
         print("Generated High Variance Trajectories")
 
-        # Modes
+        # Spatial eigen Modes
         fig_px_avg_modes(idl, num_modes=8, t_idx=0, outpath=OUT / "figI_px_avg_modes.png",)
         print("Generated figI")
 
@@ -155,14 +161,12 @@ def run(mat_path):
 
 # Main
 if __name__ == "__main__":
-
+    # Loading files
     DEFAULT_MAT = (Path(__file__).resolve().parent
                    / "Pts_GrowGyre_regime_very-abrupt_strength20_45x30x101.mat")
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--mat", type=str, default=str(DEFAULT_MAT),
                         help="Path to MATLAB trajectory file",)
-
     args = parser.parse_args()
     print("\nUsing MAT file:")
     print(args.mat)

@@ -12,22 +12,22 @@ from GrowGyre import grow_gyre
 import matplotlib.pyplot as plt
 
 # Parameters
-mx, my = 45, 30
-Ix, Iy = [0, 3], [0, 2]
-T0, TF, dt = 0.0, 1.0, 0.01
+mx, my = 45, 30                                      # number of grid points in x and y
+Ix, Iy = [0, 3], [0, 2]                               # spatial domain
+T0, TF, dt = 0.0, 1.0, 0.01                             # time interval and step size
 Tspan = np.arange(T0, TF + dt, dt)
 T = len(Tspan)
-strength = 20.0
+strength = 20.0                                        # flow intensity
 regime = 'very-abrupt'
 N = mx * my
 # File name
 CACHE = (f"Pts_GrowGyre_regime_{regime}" f"_strength{int(strength)}" f"_{mx}x{my}x{T}.mat")
-
+# Load trajectories if they already exist
 if os.path.exists(CACHE):
     data = loadmat(CACHE)
     pts = data["pts"]
     assert pts.shape == (2, N, T), (f"Cached pts shape {pts.shape} mismatch.")
-
+# Otherwise generate trajectories
 else:
     print(f"Generating {N} trajectories x {T} time steps...")
     t_start = time.time()
@@ -42,7 +42,7 @@ else:
         sol = solve_ivp(lambda t, s: strength * grow_gyre(t, s, regime=regime),
             [T0, TF], [x0[i], y0[i]], t_eval=Tspan, method='RK45', rtol=1e-9, atol=1e-12)
         pts[:, i, :] = sol.y
-
+     # Save results 
     savemat(CACHE, {"pts": pts, "Tspan": Tspan, "mx": mx, "my": my, "strength": strength,
                     "regime": regime})
 

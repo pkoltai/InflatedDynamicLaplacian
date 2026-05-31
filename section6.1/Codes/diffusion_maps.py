@@ -4,30 +4,35 @@ import numpy as np
 from scipy import sparse
 from scipy.spatial import KDTree
 
-
+# Compute nearest-neighbor distances for each point
 def nndist(A: np.ndarray) -> np.ndarray:
     """ Nearest Neighbour distances """
     tree = KDTree(A)
     dists, _ = tree.query(A, k=2)                  
     return dists[:, 1]
 
-
+# Compute mean squared nearest-neighbor distance
 def mean_nndist_sq(pts_slice: np.ndarray) -> float:
     nn = nndist(pts_slice.T)                       # pts_slice.T is (N, 2)
     return float(np.mean(nn) ** 2)
 
 
 def diffusion_maps_matrix(pts: np.ndarray, epsilon: float):
-    """ Builds the diffusion maps """
+    """ Builds the diffusion maps with following steps:
+     1. Construct sparse kernel 
+     2. Apply cutoff radius for sparsity 
+     3. Normalize kernel to remove bias
+     4. Row-normalization  """
     m = pts.shape[1]
     data_T = pts.T                        # (N, d)
-    r = np.sqrt(5.0 * epsilon)             # Cutoff  r
+    r = np.sqrt(20.0 * epsilon)             # Cutoff  r
     tree = KDTree(data_T)
     idx_list = tree.query_ball_point(data_T, r)   
     lv = sum(len(idx_list[i]) for i in range(m))
     rows = np.empty(lv, dtype=np.int32)
     cols = np.empty(lv, dtype=np.int32)
     vals = np.empty(lv, dtype=np.float64)
+    # Building kernel matrix 
     icurr = 0
     for i in range(m):
         nbrs = idx_list[i]
@@ -43,6 +48,7 @@ def diffusion_maps_matrix(pts: np.ndarray, epsilon: float):
     A = sparse.csr_matrix((vals, (rows, cols)), shape=(m, m), dtype=float)
     diag_A = np.array(A.diagonal())
     A = A - sparse.diags(diag_A, format="csr") + sparse.eye(m, format="csr")
+     # Density normalization 
     row_means = np.array(A.mean(axis=1)).ravel()   
     q = 1.0 / row_means
     kalpha = q
@@ -52,7 +58,7 @@ def diffusion_maps_matrix(pts: np.ndarray, epsilon: float):
 
     return DMM.tocsr(), A.tocsr()
 
-
+# Building temporal Laplacian matrix
 def temp_laplace(Tspan: np.ndarray) -> np.ndarray:
     """ Laplacian """
     ts = np.asarray(Tspan).ravel()
