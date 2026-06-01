@@ -25,7 +25,7 @@ def diffusion_maps_matrix(pts: np.ndarray, epsilon: float):
      4. Row-normalization  """
     m = pts.shape[1]
     data_T = pts.T                        # (N, d)
-    r = np.sqrt(20.0 * epsilon)             # Cutoff  r
+    r = np.sqrt(5.0 * epsilon)             # Cutoff  r
     tree = KDTree(data_T)
     idx_list = tree.query_ball_point(data_T, r)   
     lv = sum(len(idx_list[i]) for i in range(m))
