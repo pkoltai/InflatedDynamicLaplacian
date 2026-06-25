@@ -83,7 +83,7 @@ rad0  = (xmax0 - xmin0) / 2.0
 xmax = SpacePointsarray[0].max();  xmin = SpacePointsarray[0].min()
 ymax = SpacePointsarray[1].max();  ymin = SpacePointsarray[1].min()
 # Epsilon Value 
-epsilonx = 6835*4
+epsilonx = 6835
 epsilont = 1
 # Temporal Coupling Parameter a 
 a_factor = 1.0
