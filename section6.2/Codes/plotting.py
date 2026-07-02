@@ -273,20 +273,25 @@ def plot_red_region_snapshots(MM_pts, avg_evecs, TimePoints, b_globind, Num_Spac
 def save_spatial_eigenmode_movies(evecs_3d, MM_pts, b_globind, Num_Space_Points, TimePoints,
                                   dynmodes, num_spat_mode_movies=2, MSR=1,
                                   xmin=None, xmax=None, ymin=None, ymax=None,
-                                  mov_fn_head='', fps=None, results_dir='results'):
+                                  mov_fn_head='', fps=None, results_dir='results',
+                                  flip_modes=None):
     """ Animates each Spatial Eigenmodes """
     os.makedirs(results_dir, exist_ok=True)
     Num_Time_Points = MM_pts.shape[2]
     TimePoints = np.asarray(TimePoints)
     bp_inds = np.where(b_globind[:Num_Space_Points])[0]
     if fps is None:
-        fps = max(1, 4 * Num_Time_Points / 45)               
+        fps = max(1, 4 * Num_Time_Points / 45)
+    if flip_modes is None:
+        flip_modes = set()
+    else:
+        flip_modes = set(flip_modes)
     saved_files = []
     for jj in range(num_spat_mode_movies):
         mode = dynmodes[jj]
         mode_vals = evecs_3d[:, :, mode].copy()
-        if np.sum(mode_vals) < 0:
-            mode_vals *= -1
+        if jj in flip_modes:
+            mode_vals = -mode_vals
         caxbound = max(abs(mode_vals.min()), abs(mode_vals.max()))
         if caxbound == 0:
             caxbound = 1.0

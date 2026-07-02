@@ -29,9 +29,11 @@ CACHE_DIR = 'cache'
 os.makedirs(CACHE_DIR, exist_ok=True)
 TRAJ_CACHE_FILE = os.path.join(CACHE_DIR, 'trajectories_cache.npz')
 tstart = 1
-tend   = 240
+tend   = 240 
 # Load trajectory data 
-if os.path.exists(TRAJ_CACHE_FILE):
+expected_cols = int(np.ceil(((tend - tstart) / 0.125 + 1) / 8))
+if os.path.exists(TRAJ_CACHE_FILE) and \
+        np.load(TRAJ_CACHE_FILE)['xdata1'].shape[1] in (expected_cols, expected_cols + 1):
     print(f' Loading Trajectories {TRAJ_CACHE_FILE}  ')
     t0_wall = time.time()
     _cache = np.load(TRAJ_CACHE_FILE)
@@ -83,14 +85,16 @@ rad0  = (xmax0 - xmin0) / 2.0
 xmax = SpacePointsarray[0].max();  xmin = SpacePointsarray[0].min()
 ymax = SpacePointsarray[1].max();  ymin = SpacePointsarray[1].min()
 # Epsilon Value 
-epsilonx = 6835
+epsilonx = 6835*4
 epsilont = 1
 # Temporal Coupling Parameter a 
-a_factor = 1.0
+a_factor = 1.0  
 a, t_factor, a_min = compute_a(Total_days, rad0, dirichlet=dirichlet,a_factor=a_factor,verbose=True)
 # Boundary indices
 t0_wall = time.time()
-b_globind, b_locind = compute_boundary_indices(SpacePointsarray, method=2)
+b_globind, b_locind = compute_boundary_indices(SpacePointsarray, method=2,
+    boundary_method='alphashape', shrink=0.4)
+
 # Spacetime diffusion matrix
 print(' Building Spacetime Diffusion Matrix ')
 t0_wall = time.time()
@@ -126,7 +130,7 @@ mov_fn_head = (f'mov_PV_{tend}_{Domain}_{BC}_a_{a}_eps_{epsilonx}'
 print(' Animating Spatial Eigenmodes ')
 save_spatial_eigenmode_movies(evecs_3d, MM_pts, b_globind, Num_Space_Points, TimePoints,
     dynmodes, num_spat_mode_movies=2, MSR=1, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-    mov_fn_head=mov_fn_head, results_dir=RESULTS_DIR)
+    mov_fn_head=mov_fn_head, results_dir=RESULTS_DIR, flip_modes=[0])
 
 # Time Averaged Spatial Operator and Eigenmodes
 Px_avg = compute_Px_avg(Px, Num_Space_Points, Num_Time_Points, b_globind=b_globind, 
